@@ -49,12 +49,12 @@ ui = fluidPage(
 server = function(input, output, session) {
   
   # Call server functions for each tab
+  combine_summary_server(data, input, output, session)
   stock_tab_server(stock_data, input, output, session)
+  mutualfund_tab_server(mutual_data, input, output, session)
+  etf_tab_server(etf_data, input, output, session)
   index_tab_server(index_data, input, output, session)
   crypto_tab_server(crypto_data, input, output, session)
-  etf_tab_server(etf_data, input, output, session)
-  mutualfund_tab_server(mutual_data, input, output, session)
-  combine_summary_server(data, input, output, session)
 }
 
 # Run the Shiny app
