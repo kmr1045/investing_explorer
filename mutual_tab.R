@@ -1,3 +1,5 @@
+# mutual_tab.R
+
 # UI for the Mutual Fund tab
 mutualfund_tab_ui = function(data) {
   tabPanel("Mutual Funds",
@@ -39,7 +41,7 @@ mutualfund_tab_ui = function(data) {
 mutualfund_tab_server = function(data, input, output, session) {
   
   # Show introductory text when no Mutual Fund is selected
-  output$introTextMutual <- renderUI({
+  output$introTextMutual = renderUI({
     if(length(input$mutualFund) == 0) {
       HTML(
         paste(
@@ -70,7 +72,7 @@ mutualfund_tab_server = function(data, input, output, session) {
   })
   
   # Show the "Click on a Mutual Fund's line" message only when Mutual Funds are selected
-  output$clickTextMutual <- renderUI({
+  output$clickTextMutual = renderUI({
     if(length(input$mutualFund) > 0) {
       p("Click on a Mutual Fund's line in the chart to get more information about that mutual fund.")
     } else {
@@ -79,7 +81,7 @@ mutualfund_tab_server = function(data, input, output, session) {
   })
   
   # Show custom date range picker when "Custom" is selected
-  output$customDateRangeMutual <- renderUI({
+  output$customDateRangeMutual = renderUI({
     if (input$dateRangeMutual == "Custom Date Range") {
       dateRangeInput("customDateRangeMutual", "Select Custom Date Range", 
                      start = min(data$Date), end = max(data$Date),
