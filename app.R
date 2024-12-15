@@ -18,6 +18,7 @@ source('crypto_tab.R')
 source('etf_tab.R')
 source('mutual_tab.R')
 source('combined_tab.R')
+source('funds_summary_tab.R')
 
 # Read in the data
 data = read_csv("https://uwmadison.box.com/shared/static/81h2znsto477hgtn99nycawhsy626bae.csv")
@@ -37,11 +38,12 @@ ui = fluidPage(
   navbarPage("", id = "nav",
              
              combine_summary_ui(data), 
+             funds_summary_tab_ui(data),
              stock_tab_ui(stock_data),  
              mutualfund_tab_ui(mutual_data), 
              etf_tab_ui(etf_data),      
              index_tab_ui(index_data), 
-             crypto_tab_ui(crypto_data),
+             crypto_tab_ui(crypto_data)
   )
 )
 
@@ -50,6 +52,7 @@ server = function(input, output, session) {
   
   # Call server functions for each tab
   combine_summary_server(data, input, output, session)
+  funds_summary_tab_server(data, input, output, session)
   stock_tab_server(stock_data, input, output, session)
   mutualfund_tab_server(mutual_data, input, output, session)
   etf_tab_server(etf_data, input, output, session)

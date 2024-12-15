@@ -1,227 +1,219 @@
-# helper.R
-
-# Helper functions for filtering and plotting
+# combined_tab.R
 
 
-# ____________________________________________________________________________________________________________
-# 1. Plot Generation Functions
-
-# Generate plot for prices (e.g., Open, Close, Adjusted)
-generatePrices = function(filtered_data, min_date, max_date, metric, plot_source) {
-  plot_data = filtered_data %>%
-    mutate(hover_text = case_when(
-      metric == "Adjusted" ~ paste0("Name: ", Name, "<br>Date: ", format(Date, "%B %d, %Y"), "<br>Adjusted: $", format(round(Adjusted, 2), nsmall = 2)),
-      metric %in% c("Open", "Close") ~ paste0("Name: ", Name, "<br>Date: ", format(Date, "%B %d, %Y"), "<br>Open: $", format(round(Open, 2), nsmall = 2), "<br>Close: $", format(round(Close, 2), nsmall = 2), "<br>Adjusted: $", format(round(Adjusted, 2), nsmall = 2)),
-      metric %in% c("High", "Low") ~ paste0("Name: ", Name, "<br>Date: ", format(Date, "%B %d, %Y"), "<br>Low: $", format(round(Low, 2), nsmall = 2), "<br>High: $", format(round(High, 2), nsmall = 2), "<br>Adjusted: $", format(round(Adjusted, 2), nsmall = 2))
-    ))
-  
-  plot_ly(data = plot_data, x = ~Date, 
-          y = plot_data[[metric]], color = ~Name, 
-          type = 'scatter', mode = 'lines',
-          text = ~hover_text, 
-          hoverinfo = 'text',
-          key = ~Name, source = plot_source) %>%
-    layout(
-      title = paste(metric, "Share Price from", format(min_date, "%B %d, %Y"), "to", format(max_date, "%B %d, %Y")),
-      xaxis = list(title = "Date", range = c(min_date, max_date)),
-      yaxis = list(title = paste(metric, "Price ($)"))
-    ) %>%
-    event_register("plotly_click")
+# UI for the Combined Summary Tab
+combine_summary_ui = function(data) {
+  tabPanel("Investment Comparison Overview",
+           sidebarLayout(
+             sidebarPanel(
+               # Dropdowns for each investment type
+               selectInput("compareStocks", "Select Stocks", 
+                           choices = data %>% filter(Type == 'Stock') %>% distinct(Name) %>% arrange(Name) %>% pull(Name),
+                           multiple = TRUE),
+               selectInput("compareIndex", "Select Index Funds", 
+                           choices = data %>% filter(Type == 'Index') %>% distinct(Name) %>% arrange(Name) %>% pull(Name),
+                           multiple = TRUE),
+               selectInput("compareCryptos", "Select Cryptocurrencies", 
+                           choices = data %>% filter(Type == 'Crypto') %>% distinct(Name) %>% arrange(Name) %>% pull(Name),
+                           multiple = TRUE),
+               selectInput("compareETFs", "Select ETFs", 
+                           choices = data %>% filter(Type == 'ETF') %>% distinct(Name) %>% arrange(Name) %>% pull(Name),
+                           multiple = TRUE),
+               selectInput("compareMutual", "Select Mutual Funds", 
+                           choices = data %>% filter(Type == 'Mutual Fund') %>% distinct(Name) %>% arrange(Name) %>% pull(Name),
+                           multiple = TRUE),
+               
+               # Price Metric
+               selectInput("compareMetricSummary", "Price Metric", 
+                           choices = c("Open", "Close", "Low", "High", "Adjusted"), 
+                           selected = 'Adjusted'),
+               
+               # Plot Type
+               radioButtons("comparePlotTypeSummary", "Select Plot Type", 
+                            choices = c("Price" = "price", "Percentage Change" = "pct_change", "Waterfall" = "waterfall"),
+                            selected = "price"),
+               
+               # Predefined Date Range
+               selectInput("PreDateRangeCompareSummary", "Select Date Range", 
+                           choices = c("7 Days", "1 Month", "6 Months", "1 Year", "5 Years", "Year-to-Date", "Custom Date Range"), 
+                           selected = "1 Month"),
+               
+               # Conditional UI for custom date range
+               uiOutput("customDateRangeCompareSummary"),
+               
+               # Reset Button
+               actionButton("resetCompareSummary", "Reset Filters")
+             ),
+             mainPanel(
+               # Introduction text when no investment is selected
+               uiOutput("introTextCompareSummary"),
+               plotlyOutput("comparisonSummaryPlot"),
+               
+               # Message when an investment is selected
+               uiOutput("clickTextCompareSummary"),
+               uiOutput("summaryCompareSummary")
+             )
+           )
+  )
 }
 
-
-# Generate plot for percent change since the minimum date
-generatePctChange = function(filtered_data, min_date, max_date, metric, plot_source) {
-  plot_data = filtered_data %>%
-    group_by(Name) %>%
-    mutate(Begin_Val = get(metric)[1],
-           Pct_Change = (get(metric) - Begin_Val) / Begin_Val * 100) %>%
-    ungroup()
+# Server logic for the Combined Summary Tab
+combine_summary_server = function(data, input, output, session) {
   
-  plot_ly(data = plot_data, x = ~Date, 
-          y = ~Pct_Change, color = ~Name, 
-          type = 'scatter', mode = 'lines', 
-          text = ~paste("Name:", Name, "<br>Date:", format(Date, "%B %d, %Y"), "<br>Percent Change:", round(Pct_Change, 2), "%"),
-          hoverinfo = 'text', key = ~Name, source = plot_source) %>%
-    layout(
-      title = paste(metric, "Price Percentage Change from", format(min_date, "%B %d, %Y"), "to", format(max_date, "%B %d, %Y")),
-      xaxis = list(title = "Date", range = c(min_date, max_date)),
-      yaxis = list(title = paste(metric, "Price Percentage Change (%)"))
-    ) %>% event_register("plotly_click")
-}
-
-# Add click feature that gives company summary
-createInvestmentSummary = function(event, input, data, selection) {
-  if ((is.null(event)) | (selection == 0)) {
-    return(NULL)
-  } else {
-    clicked_investment = event$key
-    investment_info = data %>%
-      filter(Name == clicked_investment) %>%
-      select(Name, Symbol, Sector, Industry, Headquarters, Founded, Date_added) %>%
-      unique()
-    
-    # Improved check for Sector to handle empty or NULL values
-    if (!is.na(investment_info$Sector)) {
-      tagList(
-        h4(paste("Summary for:", investment_info$Name)),
-        p(paste("Symbol:", investment_info$Symbol)),
-        p(paste("Sector:", investment_info$Sector)),
-        p(paste("Industry:", investment_info$Industry)),
-        p(paste("Headquarters:", investment_info$Headquarters)),
-        p(paste("Founded:", investment_info$Founded)),
-        p(paste("Date Added to S&P 500:", format(as.Date(investment_info$Date_added), "%B %d, %Y")))
+  # Introduction text when no investments are selected
+  output$introTextCompareSummary = renderUI({
+    if (length(input$compareStocks) == 0 && length(input$compareIndex) == 0 && 
+        length(input$compareCryptos) == 0 && length(input$compareETFs) == 0 && 
+        length(input$compareMutual) == 0) {
+      HTML("<div style='font-size: 16px; width: 80%; margin: 0 auto; white-space: normal; word-wrap: break-word; overflow-wrap: break-word;'>",
+           
+           # Investment Types Overview
+           "<b>Investment Types Overview</b>",
+           "<ul style='margin-top: 0; padding-left: 20px;'>",
+           "<li><b>Stocks:</b> Stocks represent ownership in a company and offer potential for capital appreciation through price increases, along with dividends. They can be volatile and are ideal for investors seeking growth with higher risk.</li>",
+           "<li><b>Mutual Funds:</b> Mutual funds pool money from many investors to buy a diversified portfolio of assets. They are actively or passively managed and are great for investors seeking professional management of their portfolios.</li>",
+           "<li><b>ETFs (Exchange-Traded Funds):</b> ETFs pool investments in a variety of assets like stocks, bonds, or commodities. They are traded on exchanges like stocks and offer liquidity, diversification, and lower expense ratios compared to mutual funds. Ideal for diversified investors.</li>",
+           "<li><b>Index Funds:</b> Index funds track the performance of a specific market index (like the S&P 500). They offer diversification and tend to have lower fees than actively managed funds. Ideal for passive investors seeking long-term growth.</li>",
+           "<li><b>Cryptocurrencies:</b> Cryptocurrencies are digital assets that use blockchain technology. They are highly volatile and can offer high returns, but they come with significant risk. Suitable for investors with high risk tolerance seeking alternative investments.</li>",
+           "</ul>",
+           
+           # Chart Options
+           "<b>Chart Options</b>",
+           "<ul style='margin-top: 0; padding-left: 20px;'>",
+           "<li><b>Price vs Percentage Change vs Waterfall:</b> Choose between three chart types:",
+           "<ul style='margin-top: 0; padding-left: 20px;'>",
+           "<li><b>Price:</b> Displays the actual price changes of the selected investments over time.</li>",
+           "<li><b>Percentage Change:</b> Shows the relative percentage change in price compared to the starting point, illustrating how the value has increased or decreased.</li>",
+           "<li><b>Waterfall:</b> A waterfall chart displays the incremental changes in price over time. Each period's change is represented as a bar, with the cumulative effect shown at the end of the period. This chart is ideal for understanding how small changes add up to larger overall performance changes.</li>",
+           "</ul>",
+           "</li>",
+           
+           "<li><b>Price Metrics:</b> You can compare investments based on various price metrics:",
+           "<ul style='margin-top: 0; padding-left: 20px;'>",
+           "<li><b>Open/Close:</b> The price at the beginning and end of each day.</li>",
+           "<li><b>High/Low:</b> The highest and lowest prices during the day.</li>",
+           "<li><b>Adjusted:</b> The price adjusted for dividends, stock splits, and other corporate actions, providing a clearer picture of performance over time.</li>",
+           "</ul>",
+           "</li>",
+           "<li><b>Date Range:</b> You can select different date ranges. For custom date ranges, you can choose any period between ", 
+           format(min(data$Date, na.rm = TRUE), "%B %d, %Y"), 
+           "and ",
+           format(max(data$Date, na.rm = TRUE), "%B %d, %Y"), 
+           ".</li>",
+           "</ul>",
+           
+           "</div>"
       )
     } else {
-      tagList(
-        h4(paste("Summary for:", investment_info$Name)),
-        p(paste("Symbol:", investment_info$Symbol))
-      )
+      return(NULL)  # Hide intro text when investments are selected
     }
-  }
+  })
+  
+  # Show the "Click on a line" message only when investments are selected
+  output$clickTextCompareSummary = renderUI({
+    if (length(input$compareStocks) > 0 || length(input$compareIndex) > 0 ||
+        length(input$compareCryptos) > 0 || length(input$compareETFs) > 0 ||
+        length(input$compareMutual) > 0) {
+      p("Click on a line in the chart to get more information about the selected investments.")
+    } else {
+      return(NULL)  # Hide the message if no investment is selected
+    }
+  })
+  
+  # Custom date range UI
+  output$customDateRangeCompareSummary = renderUI({
+    if (input$PreDateRangeCompareSummary == "Custom Date Range") {
+      dateRangeInput("customDateRangeCompareSummary", "Select Custom Date Range", 
+                     start = min(data$Date), end = max(data$Date),
+                     min = min(data$Date), max = max(data$Date),
+                     format = "mm/dd/yyyy", startview = 'decade')
+    } else {
+      return(NULL)  # Hide the custom date range input
+    }
+  })
+  
+  # Render the comparison plot
+  output$comparisonSummaryPlot = renderPlotly({
+    if (length(input$compareStocks) == 0 && length(input$compareIndex) == 0 &&
+        length(input$compareCryptos) == 0 && length(input$compareETFs) == 0 && 
+        length(input$compareMutual) == 0) {
+      return(NULL)  # Do not render plot when no data is available
+    } else {
+      # Calculate date range based on predefined or custom selection
+      if (input$PreDateRangeCompareSummary != "Custom Date Range") {
+        date_range = calculate_date_range(input$PreDateRangeCompareSummary, data)
+        min_date = date_range[1]
+        max_date = date_range[2]
+      } else {
+        min_date = input$customDateRangeCompareSummary[1]
+        max_date = input$customDateRangeCompareSummary[2]
+      }
+      
+      # Filter data based on selected investments and date range
+      all_data = bind_rows(
+        filterData(data, input$compareStocks, min_date, max_date),
+        filterData(data, input$compareIndex, min_date, max_date),
+        filterData(data, input$compareCryptos, min_date, max_date),
+        filterData(data, input$compareETFs, min_date, max_date),
+        filterData(data, input$compareMutual, min_date, max_date)
+      )
+      
+      # Generate plot if data is available
+      return(generatePlot(all_data, input$comparePlotTypeSummary, min_date, max_date, input$compareMetricSummary, "comparisonSummaryPlot"))
+    }
+  })
+  
+  # Reset Filters for the Combined Summary Tab (for all categories)
+  observeEvent(input$resetCompareSummary, {
+    
+    # Reset all investment category selections to NULL (clear selected investments)
+    updateSelectInput(session, "compareStocks", selected = NULL)
+    updateSelectInput(session, "compareIndex", selected = NULL)
+    updateSelectInput(session, "compareCryptos", selected = NULL)
+    updateSelectInput(session, "compareETFs", selected = NULL)
+    updateSelectInput(session, "compareMutual", selected = NULL)
+    
+    # Reset the predefined date range to default "1 Month"
+    updateSelectInput(session, "PreDateRangeCompareSummary", selected = "1 Month")
+    
+    # Reset custom date range to default min and max values based on data
+    updateDateRangeInput(session, "customDateRangeCompareSummary", 
+                         start = min(data$Date, na.rm = TRUE), 
+                         end = max(data$Date, na.rm = TRUE))
+    
+    # Reset the choices for each investment category (stocks, index, cryptos, ETFs, mutual funds)
+    updateSelectInput(session, "compareStocks", 
+                      choices = data %>% filter(Type == 'Stock') %>% distinct(Name) %>% arrange(Name) %>% pull(Name))
+    
+    updateSelectInput(session, "compareIndex", 
+                      choices = data %>% filter(Type == 'Index') %>% distinct(Name) %>% arrange(Name) %>% pull(Name))
+    
+    updateSelectInput(session, "compareCryptos", 
+                      choices = data %>% filter(Type == 'Crypto') %>% distinct(Name) %>% arrange(Name) %>% pull(Name))
+    
+    updateSelectInput(session, "compareETFs", 
+                      choices = data %>% filter(Type == 'ETF') %>% distinct(Name) %>% arrange(Name) %>% pull(Name))
+    
+    updateSelectInput(session, "compareMutual", 
+                      choices = data %>% filter(Type == 'Mutual Fund') %>% distinct(Name) %>% arrange(Name) %>% pull(Name))
+  })
+  
+  
+  # Create a reactive expression for the clicked investment summary
+  eventCombinedSummary = reactive({
+    event_data("plotly_click", source = "comparisonSummaryPlot")
+  })
+  
+  # Output the summary when an investment is clicked
+  output$summaryCompareSummary = renderUI({
+    event = eventCombinedSummary()
+    if (!is.null(event)) {
+      createInvestmentSummary(event, input, data, 
+                              length(input$compareStocks) + length(input$compareIndex) + 
+                                length(input$compareCryptos) + length(input$compareETFs) + 
+                                length(input$compareMutual))
+    } else {
+      return(NULL)  # Hide summary if no investment is clicked
+    }
+  })
 }
-
-
-# Generate Waterfall Plot with Dynamic Waterfall
-generate_waterfall_plot = function(filtered_data, min_date, max_date, metric, plot_source) {
-  # Calculate the difference in days
-  date_diff = as.numeric(difftime(max_date, min_date, units = "days"))
-  
-  # Decide grouping period based on the date range length, with buffer
-  if (date_diff > 365 * 3) {
-    period_type = "year"
-  } else if (date_diff > 30 * 4) {
-    period_type = "month"
-  } else if (date_diff > 7 * 4) {
-    period_type = "week"
-  } else if (date_diff <= 7 * 4) {
-    period_type = "day"
-  }
-  
-  # Data processing with date filtering and dynamic period selection
-  water_data = filtered_data %>%
-    mutate(Date = as.Date(Date)) %>%
-    group_by(Name, Symbol, Period = floor_date(Date, period_type)) %>%
-    reframe(
-      Metric_Value = round(last(!!sym(metric)) - first(!!sym(metric)), 1),
-      .groups = 'drop'
-    )
-  
-  # Format the Label based on the period type
-  if (period_type == "day") {
-    water_data = water_data %>%
-      mutate(Label = format(Period, "%B %d, %Y"))  # Full date format (Month Day, Year)
-  } else if (period_type == "week") {
-    water_data = water_data %>%
-      mutate(Label = format(Period, "%B %d, %Y"))  # Full date format (Month Day, Year)
-  } else if (period_type == "month") {
-    water_data = water_data %>%
-      mutate(Label = format(Period, "%B %Y"))  # Month and Year format
-  } else if (period_type == "year") {
-    water_data = water_data %>%
-      mutate(Label = format(Period, "%Y"))  # Only year format
-  }
-  
-  # Calculate cumulative change for waterfall
-  water_data = water_data %>%
-    group_by(Name) %>%
-    mutate(Cumulative_Metric_Value = cumsum(Metric_Value)) %>%
-    ungroup()
-  
-  # Calculate total for each company
-  total_data = water_data %>%
-    group_by(Name) %>%
-    reframe(
-      Label = "Total",
-      Metric_Value = sum(Metric_Value),
-      Cumulative_Metric_Value = sum(Cumulative_Metric_Value),
-      Symbol = unique(Symbol),
-      hover_text = paste0("Name: ", Name,
-                          "<br>Symbol: ", Symbol,
-                          "<br>Period: Total",
-                          "<br>", metric, " Change: ", dollar(sum(Metric_Value)),
-                          "<br>Source: ", plot_source)  
-    ) %>%
-    ungroup()
-  
-  # Combine the original data with the total row
-  water_data = bind_rows(water_data, total_data) %>%
-    distinct(Name, Label, .keep_all = TRUE)
-  
-  # Create the waterfall plot
-  num_companies = n_distinct(water_data$Name)
-  colors = RColorBrewer::brewer.pal(min(num_companies, 9), "Set2")
-  
-  # Dynamic title based on period type
-  period_label = case_when(
-    period_type == "day"   ~ "Daily",
-    period_type == "week"  ~ "Weekly",
-    period_type == "month" ~ "Monthly",
-    period_type == "year"  ~ "Yearly"
-  )
-  
-  waterfall_plot = plot_ly(data = water_data, x = ~Label, 
-                           y = ~Metric_Value, type = 'bar', 
-                           color = ~Name, colors = colors,
-                           text = ~paste0(dollar(Metric_Value)),
-                           hoverinfo = 'text', 
-                           textposition = 'inside',
-                           textfont = list(color = 'black'),
-                           showlegend = TRUE, 
-                           marker = list(line = list(color = 'black', width = 1))) %>%
-    layout(
-      title = paste(period_label, "Change in", metric, "Price from", format(min_date, "%B %d, %Y"), "to", format(max_date, "%B %d, %Y")),
-      xaxis = list(title = "Period", tickangle = 45),  # Added angle to better format x-axis
-      yaxis = list(title = paste("Change in", metric, "Price ($)"), rangemode = "tozero"),
-      barmode = 'group'
-    ) %>%
-    event_register("plotly_click")
-  
-  return(waterfall_plot)
-}
-
-
-
-
-
-# ____________________________________________________________________________________________________________
-# 2. Data Filtering
-
-# Filter the data based on selected names, and date range
-filterData = function(data, selected_names, min_date, max_date) {
-  data %>% filter(Name %in% selected_names) %>%
-    filter(Date >= min_date, Date <= max_date)
-}
-
-
-# Helper function to calculate date ranges
-calculate_date_range = function(predefined_range, data) {
-  end_date = max(data$Date)
-  start_date = case_when(
-    predefined_range == "7 Days" ~ end_date - 7,
-    predefined_range == "1 Month" ~ end_date - 30,
-    predefined_range == "6 Months" ~ end_date - 180,
-    predefined_range == "Year-to-Date" ~ as.Date(paste0(format(end_date, "%Y"), "-01-01")),
-    predefined_range == "1 Year" ~ end_date - 365,
-    predefined_range == "5 Years" ~ end_date - 1825,
-    TRUE ~ end_date  # Default case
-  )
-  return(c(start_date, end_date))
-}
-
-
-
-# ____________________________________________________________________________________________________________
-# 3. Plot Type Decision
-
-# Decide which type of plot to generate (prices or percent change)
-generatePlot = function(plot_data, plot_type, min_date, max_date, metric, plot_source) {
-  if (plot_type == "pct_change") {
-    return(generatePctChange(plot_data, min_date, max_date, metric, plot_source))
-  } else if (plot_type == "waterfall") {
-    return(generate_waterfall_plot(plot_data, min_date, max_date, metric, plot_source))  
-  } else {
-    return(generatePrices(plot_data, min_date, max_date, metric, plot_source))
-  }
-}
-
