@@ -1,3 +1,5 @@
+# crypto_tab.R
+
 # UI for the Cryptocurrency tab
 crypto_tab_ui = function(data) {
   tabPanel("Cryptocurrencies",
@@ -39,7 +41,7 @@ crypto_tab_ui = function(data) {
 crypto_tab_server = function(data, input, output, session) {
   
   # Show introduction text when no cryptocurrency is selected
-  output$introTextCrypto <- renderUI({
+  output$introTextCrypto = renderUI({
     if(length(input$crypto) == 0) {
       HTML(
         paste(
@@ -72,7 +74,7 @@ crypto_tab_server = function(data, input, output, session) {
   })
   
   # Show the "Click on a cryptocurrency's line" text only when a cryptocurrency is selected
-  output$clickTextCrypto <- renderUI({
+  output$clickTextCrypto = renderUI({
     if(length(input$crypto) > 0) {
       p("Click on a Cryptocurrency's line in the chart to get more information about that cryptocurrency.")
     } else {
@@ -81,7 +83,7 @@ crypto_tab_server = function(data, input, output, session) {
   })
   
   # Show custom date range picker when "Custom" is selected
-  output$customDateRangeCrypto <- renderUI({
+  output$customDateRangeCrypto = renderUI({
     if (input$dateRangeCrypto == "Custom Date Range") {
       dateRangeInput("customDateRangeCrypto", "Select Custom Date Range", 
                      start = min(data$Date), end = max(data$Date),
