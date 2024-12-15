@@ -1,3 +1,5 @@
+# etf_tab.R
+
 # UI for the ETF tab
 etf_tab_ui = function(data) {
   tabPanel("ETFs",
@@ -39,7 +41,7 @@ etf_tab_ui = function(data) {
 etf_tab_server = function(data, input, output, session) {
   
   # Show introduction text when no ETF is selected
-  output$introTextETF <- renderUI({
+  output$introTextETF = renderUI({
     if(length(input$ETF) == 0) {
       HTML(
         paste(
@@ -71,7 +73,7 @@ etf_tab_server = function(data, input, output, session) {
   })
   
   # Show the "Click on an ETF's line" text only when an ETF is selected
-  output$clickTextETF <- renderUI({
+  output$clickTextETF = renderUI({
     if(length(input$ETF) > 0) {
       p("Click on an ETF's line in the chart to get more information about that ETF.")
     } else {
@@ -80,7 +82,7 @@ etf_tab_server = function(data, input, output, session) {
   })
   
   # Show custom date range picker when "Custom" is selected
-  output$customDateRangeETF <- renderUI({
+  output$customDateRangeETF = renderUI({
     if (input$dateRangeETF == "Custom Date Range") {
       dateRangeInput("customDateRangeETF", "Select Custom Date Range", 
                      start = min(data$Date), end = max(data$Date),
