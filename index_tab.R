@@ -1,3 +1,5 @@
+# index_tab.R
+
 # UI for the Index Fund tab
 index_tab_ui = function(data) {
   tabPanel("Index Funds",
@@ -39,7 +41,7 @@ index_tab_ui = function(data) {
 index_tab_server = function(data, input, output, session) {
   
   # Show introduction text when no index funds are selected
-  output$introTextIndex <- renderUI({
+  output$introTextIndex = renderUI({
     if(length(input$indexFund) == 0) {
       HTML(
         paste(
@@ -65,7 +67,7 @@ index_tab_server = function(data, input, output, session) {
   })
   
   # Show the "Click on an index fund's line" text only when an index fund is selected
-  output$clickTextIndex <- renderUI({
+  output$clickTextIndex = renderUI({
     if(length(input$indexFund) > 0) {
       p("Click on an Index Fund's line in the chart to get more information about that index.")
     } else {
@@ -112,7 +114,7 @@ index_tab_server = function(data, input, output, session) {
   })
   
   # Show custom date range picker when "Custom" is selected
-  output$customDateRangeIndex <- renderUI({
+  output$customDateRangeIndex = renderUI({
     if (input$dateRangeIndex == "Custom Date Range") {
       dateRangeInput("customDateRangeIndex", "Select Custom Date Range", 
                      start = min(data$Date), end = max(data$Date),
