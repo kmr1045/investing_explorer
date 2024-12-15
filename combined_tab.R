@@ -1,3 +1,6 @@
+# combined_tab.R
+
+
 # UI for the Combined Summary Tab
 combine_summary_ui = function(data) {
   tabPanel("Compare All Investments Summary",
@@ -58,7 +61,7 @@ combine_summary_ui = function(data) {
 combine_summary_server = function(data, input, output, session) {
   
   # Introduction text when no investments are selected
-  output$introTextCompareSummary <- renderUI({
+  output$introTextCompareSummary = renderUI({
     if (length(input$compareStocks) == 0 && length(input$compareIndex) == 0 && 
         length(input$compareCryptos) == 0 && length(input$compareETFs) == 0 && 
         length(input$compareMutual) == 0) {
@@ -107,7 +110,7 @@ combine_summary_server = function(data, input, output, session) {
   })
   
   # Show the "Click on a line" message only when investments are selected
-  output$clickTextCompareSummary <- renderUI({
+  output$clickTextCompareSummary = renderUI({
     if (length(input$compareStocks) > 0 || length(input$compareIndex) > 0 ||
         length(input$compareCryptos) > 0 || length(input$compareETFs) > 0 ||
         length(input$compareMutual) > 0) {
@@ -118,7 +121,7 @@ combine_summary_server = function(data, input, output, session) {
   })
   
   # Custom date range UI
-  output$customDateRangeCompareSummary <- renderUI({
+  output$customDateRangeCompareSummary = renderUI({
     if (input$PreDateRangeCompareSummary == "Custom Date Range") {
       dateRangeInput("customDateRangeCompareSummary", "Select Custom Date Range", 
                      start = min(data$Date), end = max(data$Date),
