@@ -22,7 +22,7 @@ generatePrices = function(filtered_data, min_date, max_date, metric, plot_source
           hoverinfo = 'text',
           key = ~Name, source = plot_source) %>%
     layout(
-      title = paste(metric, "Share Price from", format(min_date, "%B %d, %Y")),
+      title = paste(metric, "Share Price from", format(min_date, "%B %d, %Y"), "to", format(max_date, "%B %d, %Y")),
       xaxis = list(title = "Date", range = c(min_date, max_date)),
       yaxis = list(title = paste(metric, "Price ($)"))
     ) %>%
@@ -44,9 +44,9 @@ generatePctChange = function(filtered_data, min_date, max_date, metric, plot_sou
           text = ~paste("Name:", Name, "<br>Date:", format(Date, "%B %d, %Y"), "<br>Percent Change:", round(Pct_Change, 2), "%"),
           hoverinfo = 'text', key = ~Name, source = plot_source) %>%
     layout(
-      title = paste(metric, "Percentage Change from", format(min_date, "%B %d, %Y")),
+      title = paste(metric, "Price Percentage Change from", format(min_date, "%B %d, %Y"), "to", format(max_date, "%B %d, %Y")),
       xaxis = list(title = "Date", range = c(min_date, max_date)),
-      yaxis = list(title = paste(metric, "Percentage Change (%)"))
+      yaxis = list(title = paste(metric, "Price Percentage Change (%)"))
     ) %>% event_register("plotly_click")
 }
 
@@ -81,6 +81,7 @@ createInvestmentSummary = function(event, input, data, selection) {
   }
 }
 
+
 generate_waterfall_plot = function(filtered_data, min_date, max_date, metric, plot_source) {
   # Calculate the difference in days
   date_diff = as.numeric(difftime(max_date, min_date, units = "days"))
@@ -99,13 +100,29 @@ generate_waterfall_plot = function(filtered_data, min_date, max_date, metric, pl
   # Data processing with date filtering and dynamic period selection
   water_data = filtered_data %>%
     mutate(Date = as.Date(Date)) %>%
-    group_by(Name, Symbol, Period = floor_date(Date, period_type)) %>%
+    # Manually define periods based on the period type
+    mutate(Period = case_when(
+      period_type == "day" ~ Date,
+      period_type == "week" ~ as.Date(cut(Date, breaks = "week", start.on.monday = TRUE)),  # Ensure each week starts on Monday
+      period_type == "month" ~ as.Date(format(Date, "%Y-%m-01")),  # Start of the month
+      period_type == "year" ~ as.Date(format(Date, "%Y-01-01"))   # Start of the year
+    )) %>%
+    group_by(Name, Symbol, Period) %>%
     reframe(
       Metric_Value = round(last(!!sym(metric)) - first(!!sym(metric)), 1),
       .groups = 'drop'
     ) %>%
-    mutate(Label = as.character(Period)) %>%
-    select(Name, Symbol, Label, Metric_Value)
+    # Ensure Period is explicitly treated as Date for proper chronological sorting
+    mutate(Period = as.Date(Period)) %>%
+    arrange(Name, Period)  # Ensure sorting by Period
+  
+  # Fix date formatting for labels - show date in "MM/DD/YY" format for all
+  water_data = water_data %>%
+    mutate(Label = format(Period, "%m/%d/%y"))  # Date format MM/DD/YY
+  
+  # Ensure Label is treated as a factor or character for categorical plotting
+  water_data = water_data %>%
+    mutate(Label = as.character(Label))  # Ensure Label is treated as character
   
   # Calculate cumulative change for waterfall
   water_data = water_data %>%
@@ -127,35 +144,47 @@ generate_waterfall_plot = function(filtered_data, min_date, max_date, metric, pl
                           "<br>", metric, " Change: ", dollar(sum(Metric_Value)),
                           "<br>Source: ", plot_source)  
     ) %>%
-    ungroup()
+    ungroup() %>%
+    mutate(Period = as.Date(min(water_data$Period)))  # Assign a valid date to the total
   
-  # Combine the original data with the total row
+  # **Add the total row at the end and keep the order intact**
   water_data = bind_rows(water_data, total_data) %>%
-    distinct(Name, Label, .keep_all = TRUE)
+    distinct(Name, Label, .keep_all = TRUE) %>%
+    arrange(Name, Period)  # Final sorting by Period
   
   # Create the waterfall plot
   num_companies = n_distinct(water_data$Name)
   colors = RColorBrewer::brewer.pal(min(num_companies, 9), "Set2")
   
+  # Dynamic title based on period type
+  period_label = case_when(
+    period_type == "day"   ~ "Daily",
+    period_type == "week"  ~ "Weekly",
+    period_type == "month" ~ "Monthly",
+    period_type == "year"  ~ "Yearly"
+  )
+  
   waterfall_plot = plot_ly(data = water_data, x = ~Label, 
-                            y = ~Metric_Value, type = 'bar', 
-                            color = ~Name, colors = colors,
-                            text = ~dollar(Metric_Value),
-                            hoverinfo = 'text', 
-                            textposition = 'inside',
-                            textfont = list(color = 'black'),
-                            showlegend = TRUE, 
-                            marker = list(line = list(color = 'black', width = 1))) %>%
+                           y = ~Metric_Value, type = 'bar', 
+                           color = ~Name, colors = colors,
+                           text = ~paste0(dollar(Metric_Value)),
+                           hoverinfo = 'text', 
+                           textposition = 'inside',
+                           textfont = list(color = 'black'),
+                           showlegend = TRUE, 
+                           marker = list(line = list(color = 'black', width = 1))) %>%
     layout(
-      title = paste("Change in", metric, "from", format(min_date, "%B %d, %Y"), "to", format(max_date, "%B %d, %Y")),
-      xaxis = list(title = "Period"),
-      yaxis = list(title = paste("Change in", metric, "($)"), rangemode = "tozero"),
+      title = paste(period_label, "Change in", metric, "Price from", format(min_date, "%B %d, %Y"), "to", format(max_date, "%B %d, %Y")),
+      xaxis = list(title = "Period", tickangle = 45, type = 'category'),  # Explicitly set x-axis to 'category' to handle periods as categorical
+      yaxis = list(title = paste("Change in", metric, "Price ($)"), rangemode = "tozero"),
       barmode = 'group'
     ) %>%
     event_register("plotly_click")
   
   return(waterfall_plot)
 }
+
+
 
 
 # ____________________________________________________________________________________________________________
