@@ -1,3 +1,5 @@
+# stock_tab.R
+
 # Update possible industries and companies when sector drop down is updated
 updateSelections = function(selected_sectors, data, session, input) {
   industries = unique(data %>% filter(Sector %in% selected_sectors) %>% pull(Industry))
@@ -72,7 +74,7 @@ stock_tab_server = function(data, input, output, session) {
   })
   
   # Show introduction text when no companies are selected
-  output$introText <- renderUI({
+  output$introText = renderUI({
     if(length(input$Company) == 0) {
       HTML(
         paste(
@@ -109,7 +111,7 @@ stock_tab_server = function(data, input, output, session) {
   })
   
   # Show the "Click on a company's line" text only when a company is selected
-  output$clickText <- renderUI({
+  output$clickText = renderUI({
     if(length(input$Company) > 0) {
       p("Click on a company's line in the chart to get more information about that company.")
     } else {
@@ -156,7 +158,7 @@ stock_tab_server = function(data, input, output, session) {
   })
   
   # Show custom date range picker when "Custom" is selected
-  output$customDateRangeStock <- renderUI({
+  output$customDateRangeStock = renderUI({
     if (input$dateRangeStocks == "Custom Date Range") {
       dateRangeInput("customDateRangeStocks", "Select Custom Date Range", 
                      start = min(data$Date), end = max(data$Date),
