@@ -79,7 +79,6 @@ generate_risk_return_plot = function(data) {
     summarise(
       AvgReturn = mean(DailyReturn, na.rm = TRUE),
       Risk = sd(DailyReturn, na.rm = TRUE),
-      DailyReturn = last(DailyReturn),  # Capture the most recent daily return
       .groups = "drop"  # This removes grouping after summarising
     ) %>%
     ungroup()
@@ -104,7 +103,7 @@ generate_risk_return_plot = function(data) {
   
   # Create the ggplot
   p = ggplot(data_risk_return, aes(x = Risk, y = AvgReturn, text = paste("Name: ", Name, 
-                                                                          "<br>Daily Return: ", round(DailyReturn, 4), 
+                                                                          "<br>Avg Daily Return: ", round(AvgReturn, 4), "%", 
                                                                           "<br>Std Dev: ", round(Risk, 4)))) +
     geom_point() +  # Dot plot (Risk vs. Return)
     labs(title = paste("Risk vs. Return from", formatted_start_date, "to", formatted_end_date), 
